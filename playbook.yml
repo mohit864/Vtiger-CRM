@@ -1,0 +1,38 @@
+---
+- name: Collecting IP addresses of Servers
+  hosts: localhost
+  gather_facts: False
+  vars_prompt:
+    - name: storage_server
+      prompt: "Enter IP address of Storage Server"
+      private: no
+
+    - name: web_server
+      prompt: "Enter IP address of Web Server"
+      private: no
+
+    - name: database_server
+      prompt: "Enter IP address of Database Server"
+      private: no
+
+  roles:
+    - name: add-servers
+
+- name: Configuring Storage Server
+  hosts: storage  
+  gather_facts: False
+  vars:
+    webapp_storage: /dev/storage/webapp
+    database_storage: /dev/storage/database
+  pre_tasks:
+      block:
+        - name: Checking Requirements  
+          shell: "lvs {{ webapp_storage }} && lvs {{ database_storage }}"
+        - debug:
+            msg: "Storage Server satisfied all requirements." 
+      rescue:
+        - debug:
+            msg: "LVM's are not configured properly."
+  roles:
+    - name: configure-nfs-server
+   
