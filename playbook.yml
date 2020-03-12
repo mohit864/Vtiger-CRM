@@ -27,7 +27,8 @@
   pre_tasks:
     - name: Checking Requirements  
       block:
-        - shell: "lvs {{ webapp_storage }} && lvs {{ database_storage }}"
+        - name: Checking Requirements     
+          shell: "lvs {{ webapp_storage }} && lvs {{ database_storage }}"
         - debug:
             msg: "Storage Server satisfied all requirements." 
       rescue:
