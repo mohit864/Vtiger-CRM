@@ -25,14 +25,12 @@
     webapp_storage: /dev/storage/webapp
     database_storage: /dev/storage/database
   pre_tasks:
+    - name: Checking Requirements  
       block:
-        - name: Checking Requirements  
-          shell: "lvs {{ webapp_storage }} && lvs {{ database_storage }}"
+        - shell: "lvs {{ webapp_storage }} && lvs {{ database_storage }}"
         - debug:
             msg: "Storage Server satisfied all requirements." 
       rescue:
         - debug:
             msg: "LVM's are not configured properly."
-  roles:
-    - name: configure-nfs-server
    
