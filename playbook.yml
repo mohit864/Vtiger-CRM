@@ -1,5 +1,5 @@
 ---
-- name: Collecting IP addresses of Servers
+- name: Adding IP addresses of Servers
   hosts: localhost
   gather_facts: False
   vars_prompt:
