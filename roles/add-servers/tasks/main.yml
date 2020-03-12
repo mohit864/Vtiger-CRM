@@ -1,0 +1,12 @@
+---
+- add_host:
+    name: storage
+    ansible_host: "{{ storage_server }}"
+
+- add_host:
+    name: webapp
+    ansible_host: "{{ web_server }}"
+
+- add_host:
+    name: database
+    ansible_host: "{{ database_server }}"
