@@ -1,0 +1,23 @@
+---
+- name: Ensure NFS utilities are installed.
+  yum:
+    name: nfs-utils
+    state: latest
+
+- name: Create mount point /var/www/html
+  file: 
+    path: /var/www/html 
+    state: directory 
+    mode: 777 
+    owner: root 
+    group: root
+
+- name: Mount NFS share to /var/www/html
+  mount: 
+    name: /var/www/html 
+    src: "{{ hostvars['localhost']['storage_server'] }}:/nfs" 
+    fstype: nfs 
+    opts: defaults,_netdev
+    dump: '0' 
+    passno: '0' 
+    state: mounted
