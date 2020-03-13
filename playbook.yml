@@ -15,6 +15,13 @@
       prompt: "Enter IP address of Database Server"
       private: no
 
+  pre_tasks:
+    - name: Make variable persistant
+      set_fact:
+        storage_server: "{{ storage_server }}"
+        web_server: "{{ web_server }}"
+        database_server: "{{ database_server }}"
+
   roles:
     - name: add-servers
 
