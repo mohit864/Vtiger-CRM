@@ -54,3 +54,18 @@
     - name: configure-nfs-share
     - name: configure-iscsi-target
 
+- name: Configure Database Server
+  hosts: database
+  gather_facts: False
+  vars:
+    mariadb_new_root_password: "redhat"
+    mariadb_users:
+      - { name: "vtiger", password: "vtiger" }
+  roles:
+    - name: configure-database-server
+
+- name: Configure web server 
+  hosts: webserver
+  gather_facts: False
+  roles:
+    - name: configure-web-server
