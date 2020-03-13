@@ -6,7 +6,7 @@
 
 - name: add web server IP address
   add_host:
-    name: webapp
+    name: webserver
     ansible_host: "{{ web_server }}"
 
 - name: add database server IP address
