@@ -1,0 +1,4 @@
+---
+- name: save targetcli configuration
+  command: targetcli saveconfig
+  changed_when: no
