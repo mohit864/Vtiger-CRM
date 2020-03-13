@@ -27,16 +27,11 @@
     name: nfs-utils
     state: latest
 
-- name: Get IP address of web server
-  shell: "ifconfig | grep -w 'inet' | grep -v '127.0.0.1' | awk '{ print $2}'"
-  register: webserver
-  delegate_to: webapp
-  changed_when: False
-
 - name: Export /nfs share
   lineinfile:
     path: /etc/exports
-    line: "/nfs  {{ webserver.stdout }}(rw)"
+    line: "/nfs  {{ hostvars['localhost']['web_server'] }}(rw)"
+    create: yes
 
 - name: Enable firewalld
   service: 
