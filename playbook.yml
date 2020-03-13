@@ -31,6 +31,14 @@
   vars:
     webapp_storage: /dev/storage/webapp
     database_storage: /dev/storage/database
+    iscsi_targets:            
+      - wwn: 'iqn.2020-03.com.example:storage'
+        disks:
+          - path: "/dev/storage/database"
+            name: "iscsi_storage"
+            type: "block"
+        initiators:
+          - 'iqn.2020-03.com.example:database'
   pre_tasks:
     - name: Checking Requirements  
       block:
@@ -44,4 +52,5 @@
             msg: "LVM's are not configured properly."
   roles:
     - name: configure-nfs-share
+    - name: configure-iscsi-target
 
