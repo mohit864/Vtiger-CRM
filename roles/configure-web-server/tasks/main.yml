@@ -1,23 +1,125 @@
 ---
+- name: Set web server hostname
+  hostname:
+    name: "{{ webserver_hostname }}"
+ 
+- name: install the web server package group
+  yum:
+    name: 
+      - "@web server"
+      - "php"
+    state: latest
+
+- name: Install webapp.crt Certificate file
+  copy:
+    src: example.crt
+    dest: "{{ httpd_ssl_certificate_file }}"
+
+- name: Install webapp.key Key file
+  copy:
+    src: example.key
+    dest: "{{ httpd_ssl_certificate_key_file  }}"
+
+- name: Install webapp configuration file
+  template:
+    src: webapp.conf.j2
+    dest: "/etc/httpd/conf.d/webapp.conf"
+    owner: root
+    group: root
+    setype: httpd_config_t
+    mode: '0644'
+
+- name: HTTPS Redirection in Apache
+  blockinfile:
+    block: |
+      LoadModule rewrite_module modules/mod_rewrite.so
+
+      RewriteEngine On
+      RewriteCond %{HTTPS} off
+      RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI}
+
+    path: /etc/httpd/conf/httpd.conf
+ 
+- name: Install libsemanage-python package to manage SELinux boolean
+  yum:
+    name: libsemanage-python
+    state: latest
+
+- name: Set required httpd flag on and keep it persistent across reboots
+  seboolean:
+    name: httpd_can_network_connect
+    state: yes
+    persistent: yes
+  with_items:
+    - httpd_can_network_connect
+    - httpd_can_network_connect_db
+    - httpd_use_nfs
+
+- name: Enable and restart Apache service
+  service:
+    name: httpd
+    state: restarted
+    enabled: yes
+
+- name: Ensure firewall is running
+  service:
+    name: firewalld
+    state: started
+    enabled: yes
+
+- name: Allow http/https on firewalld
+  firewalld:
+    service: "{{ item }}"
+    state: enabled
+    permanent: yes
+    immediate: yes
+  with_items:
+    - http
+    - https
+ 
+
 - name: Ensure NFS utilities are installed.
   yum:
     name: nfs-utils
     state: latest
-
-- name: Create mount point /var/www/html
-  file: 
-    path: /var/www/html 
-    state: directory 
-    mode: 777 
-    owner: root 
-    group: root
 
 - name: Mount NFS share to /var/www/html
   mount: 
     name: /var/www/html 
     src: "{{ hostvars['localhost']['storage_server'] }}:/nfs" 
     fstype: nfs 
-    opts: defaults,_netdev
+    opts: defaults,_netdev,context="system_u:object_r:httpd_sys_content_t:s0"
     dump: '0' 
     passno: '0' 
     state: mounted
+ 
+- name: Ensure vtigercrm directory is present in DocumentRoot
+  stat:
+    path: /var/www/html/vtigercrm
+  register: output
+
+- debug:
+    msg: vtigercrm is already configured
+  when: output.stat.exists
+
+- copy:
+    src: vtigercrm.tar.xz
+    dest: /var/www/html/
+  when: not output.stat.exists
+
+- name: extract vtigercrm.tar.xz to DocumentRoot
+  shell: "tar -xJf /var/www/html/vtigercrm.tar.xz -C /var/www/html/ && rm -f /var/www/html/vtigercrm.tar.xz"
+  when: not output.stat.exists
+
+- name: Ensure apache user has rwX  permissions to vtigercrm directory
+  file:
+    path: /var/www/html
+    owner: root
+    group: apache
+    mode: a=rwX
+    recurse: yes
+
+- name: Restart httpd service
+  service:
+    name: httpd
+    state: restarted
