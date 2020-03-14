@@ -67,5 +67,9 @@
 - name: Configure web server 
   hosts: webserver
   gather_facts: False
+  vars:
+    webserver_hostname: "webapp.example.com"
+    httpd_ssl_certificate_file: "/etc/pki/tls/certs/example.crt"
+    httpd_ssl_certificate_key_file: "/etc/pki/tls/private/example.key"
   roles:
     - name: configure-web-server
