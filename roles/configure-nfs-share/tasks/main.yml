@@ -30,7 +30,7 @@
 - name: Export /nfs share
   lineinfile:
     path: /etc/exports
-    line: "/nfs  {{ hostvars['localhost']['web_server'] }}(rw)"
+    line: "/nfs  {{ hostvars['localhost']['web_server'] }}(rw,no_root_squash)"
     create: yes
 
 - name: Enable firewalld
