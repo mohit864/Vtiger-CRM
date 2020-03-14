@@ -34,7 +34,7 @@
     name: /var/lib/mysql
     src: /dev/sdb
     fstype: xfs
-    opts: defaults,_netdev
+    opts: defaults,_netdev,context="system_u:object_r:mysqld_db_t:s0"
     dump: '0'
     passno: '0'
     state: mounted
@@ -79,7 +79,6 @@
     name: root
     password: "{{ mariadb_new_root_password }}"
     host: localhost
-    login_unix_socket: "{{ mariadb_socket }}"
     state: present
   when: root_pwd_check.rc == 0
 
