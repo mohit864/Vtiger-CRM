@@ -2,14 +2,13 @@
 
 <Directory "/var/www/html/vtigercrm">
 
-Options Indexes FollowSymLinks
 Require all granted
 
 </Directory>
 
-DocumentRoot "/var/www/html/vtigercrm"
 ServerName {{ webserver_hostname }}
 ServerAdmin root@"{{ webserver_hostname }}"
+DocumentRoot /var/www/html/html/vtigercrm/index.html
 
 SSLEngine on
 
