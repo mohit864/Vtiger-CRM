@@ -60,7 +60,13 @@
   vars:
     mariadb_new_root_password: "redhat"
     mariadb_users:
-      - { name: "vtiger", password: "vtiger" }
+      - name: vtiger
+        password: vtiger
+        hosts:
+          - "%"
+          - "127.0.0.1"
+          - "::1"
+          - "localhost"
   roles:
     - name: configure-database-server
 
