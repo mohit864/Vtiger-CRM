@@ -1,0 +1,25 @@
+<VirtualHost *:443>
+
+<Directory "/var/www/html/vtigercrm">
+
+Options Indexes FollowSymLinks
+Require all granted
+
+</Directory>
+
+DocumentRoot "/var/www/html/vtigercrm"
+ServerName {{ webserver_hostname }}
+ServerAdmin root@"{{ webserver_hostname }}"
+
+SSLEngine on
+
+ErrorLog logs/vhost_ssl_error_log 
+TransferLog logs/vhost_ssl_access_log
+LogLevel warn
+
+# Certificate files
+SSLCertificateFile {{ httpd_ssl_certificate_file }}
+SSLCertificateKeyFile {{ httpd_ssl_certificate_key_file }}
+
+
+</VirtualHost>
