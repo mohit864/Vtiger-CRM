@@ -1,116 +1,125 @@
 ---
-- name: Install iscsi-initiator-utils packages
-  yum:
-    name: 'iscsi-initiator-utils'
-    state: 'latest'
+- block:
+    - name: Check if /dev/sdb is already mounted and Mysql is configured
+      shell: blkid /dev/sdb && mysql -u vtiger -pvtiger -e '\q'
 
-- name: Setup iSCSI Initiator name
-  lineinfile:
-    dest: '/etc/iscsi/initiatorname.iscsi'
-    regexp: '^InitiatorName='
-    line: "InitiatorName=iqn.2020-03.com.example:database"
+    - debug:
+        msg: Database Server is already configured.
+  rescue:
+    - debug:
+        msg: Database Server not configured. Now configuration start
 
-- name: Enable and restart iscsid service
-  service:
-    name: iscsid
-    state: restarted
-    enabled: yes
-  changed_when: False
+    - name: Install iscsi-initiator-utils packages
+      yum:
+        name: 'iscsi-initiator-utils'
+        state: 'latest'
 
-- name: Discover and login to iscsi target
-  open_iscsi:
-    target: "iqn.2020-03.com.example:storage"
-    portal: "{{ hostvars['localhost']['storage_server'] }}"
-    discover: yes
-    login: yes
+    - name: Setup iSCSI Initiator name
+      lineinfile:
+        dest: '/etc/iscsi/initiatorname.iscsi'
+        regexp: '^InitiatorName='
+        line: "InitiatorName=iqn.2020-03.com.example:database"
 
-- name: Make sure mount drive has a filesystem
-  filesystem:
-    fstype: xfs
-    dev: '/dev/sdb'
+    - name: Enable and restart iscsid service
+      service:
+        name: iscsid
+        state: restarted
+        enabled: yes
 
-- name: Set mount point for /dev/sdb
-  mount:
-    name: /var/lib/mysql
-    src: /dev/sdb
-    fstype: xfs
-    opts: defaults,_netdev,context="system_u:object_r:mysqld_db_t:s0"
-    dump: '0'
-    passno: '0'
-    state: mounted
+    - name: Discover and login to iscsi target
+      open_iscsi:
+        target: "iqn.2020-03.com.example:storage"
+        portal: "{{ hostvars['localhost']['storage_server'] }}"
+        discover: yes
+        login: yes
 
-- name: Install MariaDB packages
-  yum:
-    name: 
-      - mariadb
-      - mariadb-server
-      - MySQL-python
-    state: latest
+    - name: Make sure mount drive has a filesystem
+      filesystem:
+        fstype: xfs
+        dev: '/dev/sdb'
 
-- name: Enable and started mysql service
-  service:
-    name: mariadb
-    state: started
-    enabled: yes
+    - name: Set mount point for /dev/sdb
+      mount:
+        name: /var/lib/mysql
+        src: /dev/sdb
+        fstype: xfs
+        opts: defaults,_netdev,context="system_u:object_r:mysqld_db_t:s0"
+        dump: '0'
+        passno: '0'
+        state: mounted
 
-- name: Enable firewalld
-  service: 
-    name: firewalld 
-    state: started 
-    enabled: yes
+    - name: Install MariaDB packages
+      yum:
+        name: 
+          - mariadb
+          - mariadb-server
+          - MySQL-python
+        state: latest
 
-- name: Allow mysql service on firewall
-  firewalld:
-    service: mysql
-    state: enabled
-    permanent: yes
-    immediate: yes
+    - name: Enable and started mysql service
+      service:
+        name: mariadb
+        state: started
+        enabled: yes
 
-- name: Check if root password is set
-  shell: >
-    mysqladmin -u root status
-  changed_when: false
-  failed_when: false
-  register: root_pwd_check
-  tags: mariadb
+    - name: Enable firewalld
+      service: 
+        name: firewalld 
+        state: started 
+        enabled: yes
 
-- name: Set MariaDB root password for the first time
-  mysql_user:
-    name: root
-    password: "{{ mariadb_new_root_password }}"
-    host: localhost
-    state: present
-  when: root_pwd_check.rc == 0
+    - name: Allow mysql service on firewall
+      firewalld:
+        service: mysql
+        state: enabled
+        permanent: yes
+        immediate: yes
 
-- name: Create the users
-  mysql_user:
-    name: "{{ item.name }}"
-    password: "{{ item.password }}"
-    host: "%"
-    priv: "*.*:ALL"
-    login_user: root
-    login_password: "{{ mariadb_new_root_password }}"
-    state: present
-  with_items: "{{ mariadb_users }}"
+    - name: Check if root password is set
+      shell: mysqladmin -u root status
+      changed_when: false
+      failed_when: false
+      register: root_pwd_check
 
-- name: Stop mariadb service for unmounting /dev/sdb
-  service: 
-    name: mariadb
-    state: stopped
+    - name: Set MariaDB root password for the first time
+      mysql_user:
+        name: root
+        password: "{{ mariadb_new_root_password }}"
+        host: localhost
+        state: present
+      when: root_pwd_check.rc == 0
 
-- name: Unmount /dev/sdb for iscsi logout
-  mount:
-    path: /var/lib/mysql
-    state: unmounted
+    - name: Create the users
+      mysql_user:
+        name: "{{ item.0.name }}"
+        password: "{{ item.0.password }}"
+        host: "{{ item.1 }}"
+        priv: "*.*:ALL"
+        login_user: root
+        login_password: "{{ mariadb_new_root_password }}"
+        state: present
+      with_subelements: 
+        - "{{ mariadb_users }}"
+        - hosts
 
-- name: Logout from iscsi target to avoid slow reboot next 
-  open_iscsi:
-    login: no
-    target: 'iqn.2020-03.com.example:storage'
-    portal: "{{ hostvars['localhost']['storage_server'] }}"
+    - name: Stop mariadb service for unmounting /dev/sdb
+      service: 
+        name: mariadb
+        state: stopped
+
+    - name: Unmount /dev/sdb for iscsi logout
+      mount:
+        path: /var/lib/mysql
+        state: unmounted
+
+    - name: Logout from iscsi target to avoid slow reboot next 
+      open_iscsi:
+        login: no
+        target: 'iqn.2020-03.com.example:storage'
+        portal: "{{ hostvars['localhost']['storage_server'] }}"
  
-- name: Reboot database server 
-  reboot:
+    - name: Reboot database server 
+      reboot:
 
 
 
