@@ -29,6 +29,12 @@
     setype: httpd_config_t
     mode: '0644'
 
+- name: Change Document Root for Apache
+  replace:
+    path: /etc/httpd/conf/httpd.conf
+    regexp: '^DocumentRoot "/var/www/html"'
+    replace: 'DocumentRoot "/var/www/html/vtigercrm"'
+
 - name: HTTPS Redirection in Apache
   blockinfile:
     block: |
@@ -55,11 +61,6 @@
     - httpd_can_network_connect_db
     - httpd_use_nfs
 
-- name: Enable and restart Apache service
-  service:
-    name: httpd
-    state: restarted
-    enabled: yes
 
 - name: Ensure firewall is running
   service:
@@ -88,7 +89,7 @@
     name: /var/www/html 
     src: "{{ hostvars['localhost']['storage_server'] }}:/nfs" 
     fstype: nfs 
-    opts: defaults,_netdev,context="system_u:object_r:httpd_sys_content_t:s0"
+    opts: defaults,_netdev,context="system_u:object_r:httpd_sys_content_rw_t:s0"
     dump: '0' 
     passno: '0' 
     state: mounted
@@ -111,15 +112,16 @@
   shell: "tar -xJf /var/www/html/vtigercrm.tar.xz -C /var/www/html/ && rm -f /var/www/html/vtigercrm.tar.xz"
   when: not output.stat.exists
 
-- name: Ensure apache user has rwX  permissions to vtigercrm directory
+- name: Ensure apache user has full permissions to vtigercrm directory
   file:
     path: /var/www/html
     owner: root
-    group: apache
-    mode: a=rwX
+    group: root
+    mode: 0777
     recurse: yes
 
-- name: Restart httpd service
+- name: Enable and restart  httpd service
   service:
     name: httpd
     state: restarted
+    enabled: yes
