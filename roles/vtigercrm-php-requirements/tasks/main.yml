@@ -1,0 +1,31 @@
+---
+- name: Installing Required PHP packages
+  yum:
+    name:
+      - php
+      - php-imap
+      - php-curl
+      - php-xml
+      - php-mysql
+      - php-mbstring
+    state: latest
+
+
+- name: Required changes in PHP configuration
+  replace:
+    path: /etc/php.ini
+    regexp: '^log_errors = .*'
+    replace: 'log_errors = Off'
+
+- name: Required changes in PHP configuration
+  replace:
+    path: /etc/php.ini
+    regexp: '^error_reporting = .*'
+    replace: 'error_reporting = E_WARNING & ~E_NOTICE & ~E_DEPRECATED'
+
+
+- name: Restart httpd service
+  service:
+    name: httpd
+    state: restarted
+
