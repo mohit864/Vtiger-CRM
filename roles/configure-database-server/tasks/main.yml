@@ -2,6 +2,7 @@
 - block:
     - name: Check if /dev/sdb is already mounted and Mysql is configured
       shell: blkid /dev/sdb && mysql -u vtiger -pvtiger -e '\q'
+      changed_when: no
 
     - debug:
         msg: Database Server is already configured.
