@@ -8,21 +8,25 @@
   lineinfile:
     dest: '/etc/iscsi/initiatorname.iscsi'
     regexp: '^InitiatorName='
-    line: "InitiatorName=iqn.2020-03.com.example:database"
+    line: "InitiatorName={{ item.1 }}"
+  with_subelements:
+    - "{{ iscsi_targets }}"
+    - initiators
 
 - name: Enable and restart iscsid service
   service:
     name: iscsid
     state: restarted
     enabled: yes
-  changed_when: False
 
 - name: Discover and login to iscsi target
   open_iscsi:
-    target: "iqn.2020-03.com.example:storage"
+    target: "{{ item.wwn }}"
     portal: "{{ hostvars['localhost']['storage_server'] }}"
     discover: yes
     login: yes
+  with_items:
+    - "{{ iscsi_targets }}"
 
 - name: Make sure mount drive has a filesystem
   filesystem:
@@ -67,12 +71,10 @@
     immediate: yes
 
 - name: Check if root password is set
-  shell: >
-    mysqladmin -u root status
+  shell: mysqladmin -u root status
   changed_when: false
   failed_when: false
   register: root_pwd_check
-  tags: mariadb
 
 - name: Set MariaDB root password for the first time
   mysql_user:
@@ -84,14 +86,24 @@
 
 - name: Create the users
   mysql_user:
-    name: "{{ item.name }}"
-    password: "{{ item.password }}"
-    host: "%"
+    name: "{{ vtigercrm_db_user }}"
+    password: "{{ vtigercrm_db_password }}"
+    host: "{{ item }}"
     priv: "*.*:ALL"
     login_user: root
     login_password: "{{ mariadb_new_root_password }}"
     state: present
-  with_items: "{{ mariadb_users }}"
+  with_items: 
+    - "{{ db_hosts }}"
+
+- name: "Create a new database with name {{ vtigercrm_db_name }}"
+  mysql_db:
+    name: "{{ vtigercrm_db_name }}"
+    collation: "utf8_general_ci"
+    encoding: "utf8"
+    login_user: root
+    login_password: "{{ mariadb_new_root_password }}"
+    state: present
 
 - name: Stop mariadb service for unmounting /dev/sdb
   service: 
@@ -106,9 +118,11 @@
 - name: Logout from iscsi target to avoid slow reboot next 
   open_iscsi:
     login: no
-    target: 'iqn.2020-03.com.example:storage'
+    target: "{{ item.wwn }}"
     portal: "{{ hostvars['localhost']['storage_server'] }}"
- 
+  with_items:
+    - "{{ iscsi_targets }}"
+
 - name: Reboot database server 
   reboot:
 

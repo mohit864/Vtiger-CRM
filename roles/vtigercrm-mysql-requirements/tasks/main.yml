@@ -1,0 +1,20 @@
+---
+- name: Required changes in MySQL
+  blockinfile:
+    path: /etc/my.cnf
+    insertafter: '^\[mysqld\]'
+    regexp: '^\[mysqld\]'
+    block: |
+      default_storage_engine=InnoDB
+      local_infile= On
+      sql_mode=NO_ENGINE_SUBSTITUTION
+      skip-networking=0
+      collation_server = utf8_general_ci
+      init_connect='SET NAMES utf8'
+      init_connect='SET collation_connection = utf8_general_ci'
+      character_set_server = utf8
+
+- name: Restart mariadb service
+  service:
+    name: mariadb
+    state: restarted

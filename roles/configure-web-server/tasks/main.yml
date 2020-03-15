@@ -2,12 +2,10 @@
 - name: Set web server hostname
   hostname:
     name: "{{ webserver_hostname }}"
- 
+
 - name: install the web server package group
   yum:
-    name: 
-      - "@web server"
-      - "php"
+    name: "@web server"
     state: latest
 
 - name: Install webapp.crt Certificate file
@@ -18,7 +16,7 @@
 - name: Install webapp.key Key file
   copy:
     src: example.key
-    dest: "{{ httpd_ssl_certificate_key_file  }}"
+    dest: "{{ httpd_ssl_certificate_key_file }}"
 
 - name: Install webapp configuration file
   template:
@@ -45,15 +43,15 @@
       RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI}
 
     path: /etc/httpd/conf/httpd.conf
- 
+
 - name: Install libsemanage-python package to manage SELinux boolean
   yum:
     name: libsemanage-python
     state: latest
 
-- name: Set required httpd flag on and keep it persistent across reboots
+- name: Set required httpd boolean on and keep it persistent across reboots
   seboolean:
-    name: httpd_can_network_connect
+    name: "{{ item }}"
     state: yes
     persistent: yes
   with_items:
@@ -77,7 +75,7 @@
   with_items:
     - http
     - https
- 
+
 
 - name: Ensure NFS utilities are installed.
   yum:
@@ -93,17 +91,14 @@
     dump: '0' 
     passno: '0' 
     state: mounted
- 
-- name: Ensure vtigercrm directory is present in DocumentRoot
+
+- name: Check if vtigercrm is already present or not
   stat:
     path: /var/www/html/vtigercrm
   register: output
 
-- debug:
-    msg: vtigercrm is already configured
-  when: output.stat.exists
-
-- copy:
+- name: Copy vtigercrm.tar.xz from local machine to web server DocumentRoot    
+  copy:
     src: vtigercrm.tar.xz
     dest: /var/www/html/
   when: not output.stat.exists
@@ -112,6 +107,7 @@
   shell: "tar -xJf /var/www/html/vtigercrm.tar.xz -C /var/www/html/ && rm -f /var/www/html/vtigercrm.tar.xz"
   when: not output.stat.exists
 
+
 - name: Ensure apache user has full permissions to vtigercrm directory
   file:
     path: /var/www/html
@@ -119,6 +115,7 @@
     group: root
     mode: 0777
     recurse: yes
+  when: not output.stat.exists
 
 - name: Enable and restart  httpd service
   service:

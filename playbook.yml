@@ -28,21 +28,11 @@
 - name: Configuring Storage Server
   hosts: storage 
   gather_facts: False
-  vars:
-    webapp_storage: /dev/storage/webapp
-    database_storage: /dev/storage/database
-    iscsi_targets:            
-      - wwn: 'iqn.2020-03.com.example:storage'
-        disks:
-          - path: "/dev/storage/database"
-            name: "iscsi_storage"
-            type: "block"
-        initiators:
-          - 'iqn.2020-03.com.example:database'
+  vars_files:
+    - vars/variables.yml
   pre_tasks:
-    - name: Checking Requirements  
-      block:
-        - name: Checking Requirements     
+    - block:    
+        - name: "Check if two logical volume {{ webapp_storage }} and {{ database_storage }} are present on storage server or not"
           shell: "lvs {{ webapp_storage }} && lvs {{ database_storage }}"
           changed_when: False
         - debug:
@@ -57,19 +47,27 @@
 - name: Configure Database Server
   hosts: database
   gather_facts: False
-  vars:
-    mariadb_new_root_password: "redhat"
-    mariadb_users:
-      - { name: "vtiger", password: "vtiger" }
+  vars_files:
+    - vars/variables.yml
   roles:
     - name: configure-database-server
 
 - name: Configure web server 
   hosts: webserver
   gather_facts: False
-  vars:
-    webserver_hostname: "webapp.example.com"
-    httpd_ssl_certificate_file: "/etc/pki/tls/certs/example.crt"
-    httpd_ssl_certificate_key_file: "/etc/pki/tls/private/example.key"
+  vars_files:
+    - vars/variables.yml
   roles:
     - name: configure-web-server
+
+- name: VtigerCRM Pre-requisites changes for database server
+  hosts: database
+  gather_facts: False
+  roles:
+    - name: vtigercrm-mysql-requirements
+
+- name: VtigerCRM Pre-requisites changes for web server
+  hosts: webserver
+  roles:
+    - name: add-epel
+    - name: vtigercrm-php-requirements

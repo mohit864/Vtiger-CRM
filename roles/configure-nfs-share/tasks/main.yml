@@ -31,7 +31,7 @@
   lineinfile:
     path: /etc/exports
     line: "/nfs  {{ hostvars['localhost']['web_server'] }}(rw,no_root_squash)"
-    create: yes
+    state: present
 
 - name: Enable firewalld
   service: 
