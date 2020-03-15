@@ -3,10 +3,10 @@
     - name: Check if NFS share is already exported
       command: showmount -e {{ hostvars['localhost']['storage_server'] }}
       register: output
+      changed_when: no
 
     - command: '/bin/false'
       when: "'/nfs' not in output.stdout"
-
     - debug:
         msg: NFS share is already exported
    
