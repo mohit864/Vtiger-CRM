@@ -101,11 +101,11 @@
   copy:
     src: vtigercrm.tar.xz
     dest: /var/www/html/
-  when: not output.failed
+  when: not output.stat.exists
 
 - name: extract vtigercrm.tar.xz to DocumentRoot
   shell: "tar -xJf /var/www/html/vtigercrm.tar.xz -C /var/www/html/ && rm -f /var/www/html/vtigercrm.tar.xz"
-  when: not output.failed
+  when: not output.stat.exists
 
 
 - name: Ensure apache user has full permissions to vtigercrm directory
@@ -115,7 +115,7 @@
     group: root
     mode: 0777
     recurse: yes
-  when: not output.failed
+  when: not output.stat.exists
 
 - name: Enable and restart  httpd service
   service:
