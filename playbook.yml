@@ -37,12 +37,11 @@
           - path: "/dev/storage/database"
             name: "iscsi_storage"
             type: "block"
-        initiators:
-          - 'iqn.2020-03.com.example:database'
+        initiators: 
+          - "iqn.2020-03.com.example:database"
   pre_tasks:
-    - name: Checking Requirements  
-      block:
-        - name: Checking Requirements     
+    - block:    
+        - name: Check if two logical volume {{ webapp_storage }} and {{ database_storage }} are present on storage server or not
           shell: "lvs {{ webapp_storage }} && lvs {{ database_storage }}"
           changed_when: False
         - debug:
