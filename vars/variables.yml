@@ -1,0 +1,26 @@
+---
+webapp_storage: "/dev/storage/webapp"
+database_storage: "/dev/storage/database"
+
+iscsi_targets:
+  - wwn: 'iqn.2020-03.com.example:storage'
+    disks:
+      - path: "/dev/storage/database"
+        name: "iscsi_storage"
+        type: "block"
+    initiators:
+      - "iqn.2020-03.com.example:database"
+
+mariadb_new_root_password: "redhat"
+vtigercrm_db_user: "vtiger"
+vtigercrm_db_password: "vtiger"
+vtigercrm_db_name: "vtiger"
+hosts:
+  - "%"
+  - "127.0.0.1"
+  - "::1"
+  - "localhost"
+
+webserver_hostname: "webapp.example.com"
+httpd_ssl_certificate_file: "/etc/pki/tls/certs/example.crt"
+httpd_ssl_certificate_key_file: "/etc/pki/tls/private/example.key"
