@@ -1,7 +1,11 @@
 ---
 - block:
     - name: check if iSCSI target is already configured
-      command: '/bin/false' 
+      shell: 'targetcli ls /backstores/{{ item.1.type }}/{{ item.1.name }} && targetcli ls /iscsi/{{ item.0.wwn }}'
+      with_subelements: 
+        - "{{ iscsi_targets }}"
+        - disks
+      changed_when: no
 
     - debug:
         msg: iSCSI target is already Configured
