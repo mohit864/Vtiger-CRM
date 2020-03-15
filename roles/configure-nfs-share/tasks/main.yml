@@ -1,69 +1,54 @@
 ---
-- block:
-    - name: Check if NFS share is already exported
-      command: showmount -e {{ hostvars['localhost']['storage_server'] }}
-      register: output
-      changed_when: no
+- name: "Create a xfs filesystem on {{ webapp_storage }}"
+  filesystem:
+    fstype: xfs
+    dev: "{{ webapp_storage }}"
 
-    - command: '/bin/false'
-      when: "'/nfs' not in output.stdout"
-    - debug:
-        msg: NFS share is already exported
-   
-  rescue:
-    - debug:
-        msg: NFS share is not exported. Now configuration started
+- name: "Create mount point for {{ webapp_storage }}"
+  file:
+    path: /nfs
+    state: directory
+    mode: 777
+    owner: root
+    group: root
 
-    - name: "Create a xfs filesystem on {{ webapp_storage }}"
-      filesystem:
-        fstype: xfs
-        dev: "{{ webapp_storage }}"
+- name: set mount point
+  mount:
+    name: /nfs
+    src: "{{ webapp_storage }}"
+    fstype: xfs
+    opts: defaults
+    dump: '0'
+    passno: '0'
+    state: mounted
 
-    - name: "Create mount point for {{ webapp_storage }}"
-      file:
-        path: /nfs
-        state: directory
-        mode: 777
-        owner: root
-        group: root
+- name: Ensure NFS utilities are installed
+  yum:
+    name: nfs-utils
+    state: latest
 
-    - name: set mount point
-      mount:
-        name: /nfs
-        src: "{{ webapp_storage }}"
-        fstype: xfs
-        opts: defaults
-        dump: '0'
-        passno: '0'
-        state: mounted
+- name: Export /nfs share
+  lineinfile:
+    path: /etc/exports
+    line: "/nfs  {{ hostvars['localhost']['web_server'] }}(rw,no_root_squash)"
+    state: present
 
-    - name: Ensure NFS utilities are installed
-      yum:
-        name: nfs-utils
-        state: latest
+- name: Enable firewalld
+  service: 
+    name: firewalld
+    state: started
+    enabled: yes
 
-    - name: Export /nfs share
-      lineinfile:
-        path: /etc/exports
-        line: "/nfs  {{ hostvars['localhost']['web_server'] }}(rw,no_root_squash)"
-        state: present
+- name: Allow nfs in firewall
+  firewalld:
+    service: nfs
+    state: enabled
+    permanent: yes
+    immediate: yes
 
-    - name: Enable firewalld
-      service: 
-        name: firewalld
-        state: started
-        enabled: yes
-
-    - name: Allow nfs in firewall
-      firewalld:
-        service: nfs
-        state: enabled
-        permanent: yes
-        immediate: yes
-
-    - name: Restart and enable nfs server
-      service:
-        name: nfs-server
-        state: restarted
-        enabled: yes
+- name: Restart and enable nfs server
+  service:
+    name: nfs-server
+    state: restarted
+    enabled: yes
 

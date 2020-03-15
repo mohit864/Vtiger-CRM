@@ -1,126 +1,130 @@
 ---
-- block:
-    - name: Check if /dev/sdb is already mounted and Mysql is configured
-      shell: blkid /dev/sdb && mysql -u vtiger -pvtiger -e '\q'
-      changed_when: no
+- name: Install iscsi-initiator-utils packages
+  yum:
+    name: 'iscsi-initiator-utils'
+    state: 'latest'
 
-    - debug:
-        msg: Database Server is already configured.
-  rescue:
-    - debug:
-        msg: Database Server not configured. Now configuration start
+- name: Setup iSCSI Initiator name
+  lineinfile:
+    dest: '/etc/iscsi/initiatorname.iscsi'
+    regexp: '^InitiatorName='
+    line: "InitiatorName={{ item.1 }}"
+  with_subelements:
+    - "{{ iscsi_targets }}"
+    - initiators
 
-    - name: Install iscsi-initiator-utils packages
-      yum:
-        name: 'iscsi-initiator-utils'
-        state: 'latest'
+- name: Enable and restart iscsid service
+  service:
+    name: iscsid
+    state: restarted
+    enabled: yes
 
-    - name: Setup iSCSI Initiator name
-      lineinfile:
-        dest: '/etc/iscsi/initiatorname.iscsi'
-        regexp: '^InitiatorName='
-        line: "InitiatorName=iqn.2020-03.com.example:database"
+- name: Discover and login to iscsi target
+  open_iscsi:
+    target: "{{ item.wwn }}"
+    portal: "{{ hostvars['localhost']['storage_server'] }}"
+    discover: yes
+    login: yes
+  with_items:
+    - "{{ iscsi_targets }}"
 
-    - name: Enable and restart iscsid service
-      service:
-        name: iscsid
-        state: restarted
-        enabled: yes
+- name: Make sure mount drive has a filesystem
+  filesystem:
+    fstype: xfs
+    dev: '/dev/sdb'
 
-    - name: Discover and login to iscsi target
-      open_iscsi:
-        target: "iqn.2020-03.com.example:storage"
-        portal: "{{ hostvars['localhost']['storage_server'] }}"
-        discover: yes
-        login: yes
+- name: Set mount point for /dev/sdb
+  mount:
+    name: /var/lib/mysql
+    src: /dev/sdb
+    fstype: xfs
+    opts: defaults,_netdev,context="system_u:object_r:mysqld_db_t:s0"
+    dump: '0'
+    passno: '0'
+    state: mounted
 
-    - name: Make sure mount drive has a filesystem
-      filesystem:
-        fstype: xfs
-        dev: '/dev/sdb'
+- name: Install MariaDB packages
+  yum:
+    name: 
+      - mariadb
+      - mariadb-server
+      - MySQL-python
+    state: latest
 
-    - name: Set mount point for /dev/sdb
-      mount:
-        name: /var/lib/mysql
-        src: /dev/sdb
-        fstype: xfs
-        opts: defaults,_netdev,context="system_u:object_r:mysqld_db_t:s0"
-        dump: '0'
-        passno: '0'
-        state: mounted
+- name: Enable and started mysql service
+  service:
+    name: mariadb
+    state: started
+    enabled: yes
 
-    - name: Install MariaDB packages
-      yum:
-        name: 
-          - mariadb
-          - mariadb-server
-          - MySQL-python
-        state: latest
+- name: Enable firewalld
+  service: 
+    name: firewalld 
+    state: started 
+    enabled: yes
 
-    - name: Enable and started mysql service
-      service:
-        name: mariadb
-        state: started
-        enabled: yes
+- name: Allow mysql service on firewall
+  firewalld:
+    service: mysql
+    state: enabled
+    permanent: yes
+    immediate: yes
 
-    - name: Enable firewalld
-      service: 
-        name: firewalld 
-        state: started 
-        enabled: yes
+- name: Check if root password is set
+  shell: mysqladmin -u root status
+  changed_when: false
+  failed_when: false
+  register: root_pwd_check
 
-    - name: Allow mysql service on firewall
-      firewalld:
-        service: mysql
-        state: enabled
-        permanent: yes
-        immediate: yes
+- name: Set MariaDB root password for the first time
+  mysql_user:
+    name: root
+    password: "{{ mariadb_new_root_password }}"
+    host: localhost
+    state: present
+  when: root_pwd_check.rc == 0
 
-    - name: Check if root password is set
-      shell: mysqladmin -u root status
-      changed_when: false
-      failed_when: false
-      register: root_pwd_check
+- name: Create the users
+  mysql_user:
+    name: "{{ vtigercrm_db_user }}"
+    password: "{{ vtigercrm_db_password }}"
+    host: "{{ item }}"
+    priv: "*.*:ALL"
+    login_user: root
+    login_password: "{{ mariadb_new_root_password }}"
+    state: present
+  with_items: 
+    - "{{ hosts }}"
 
-    - name: Set MariaDB root password for the first time
-      mysql_user:
-        name: root
-        password: "{{ mariadb_new_root_password }}"
-        host: localhost
-        state: present
-      when: root_pwd_check.rc == 0
+- name: "Create a new database with name {{ vtigercrm_db_name }}"
+  mysql_db:
+    name: "{{ vtigercrm_db_name }}"
+    collation: "utf8_general_ci"
+    encoding: "utf8"
+    login_user: root
+    login_password: "{{ mariadb_new_root_password }}"
+    state: present
 
-    - name: Create the users
-      mysql_user:
-        name: "{{ item.0.name }}"
-        password: "{{ item.0.password }}"
-        host: "{{ item.1 }}"
-        priv: "*.*:ALL"
-        login_user: root
-        login_password: "{{ mariadb_new_root_password }}"
-        state: present
-      with_subelements: 
-        - "{{ mariadb_users }}"
-        - hosts
+- name: Stop mariadb service for unmounting /dev/sdb
+  service: 
+    name: mariadb
+    state: stopped
 
-    - name: Stop mariadb service for unmounting /dev/sdb
-      service: 
-        name: mariadb
-        state: stopped
+- name: Unmount /dev/sdb for iscsi logout
+  mount:
+    path: /var/lib/mysql
+    state: unmounted
 
-    - name: Unmount /dev/sdb for iscsi logout
-      mount:
-        path: /var/lib/mysql
-        state: unmounted
+- name: Logout from iscsi target to avoid slow reboot next 
+  open_iscsi:
+    login: no
+    target: "{{ item.wwn }}"
+    portal: "{{ hostvars['localhost']['storage_server'] }}"
+  with_items:
+    - "{{ iscsi_targets }}"
 
-    - name: Logout from iscsi target to avoid slow reboot next 
-      open_iscsi:
-        login: no
-        target: 'iqn.2020-03.com.example:storage'
-        portal: "{{ hostvars['localhost']['storage_server'] }}"
- 
-    - name: Reboot database server 
-      reboot:
+- name: Reboot database server 
+  reboot:
 
 
 

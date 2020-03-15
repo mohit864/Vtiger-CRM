@@ -1,14 +1,14 @@
 <VirtualHost *:443>
 
 <Directory "/var/www/html/vtigercrm">
-
-Require all granted
-
+  Options Indexes FollowSymLinks
+  Require all granted
+  DirectoryIndex /var/www/html/html/vtigercrm/index.html
 </Directory>
 
 ServerName {{ webserver_hostname }}
 ServerAdmin root@"{{ webserver_hostname }}"
-DocumentRoot /var/www/html/html/vtigercrm/index.html
+
 
 SSLEngine on
 

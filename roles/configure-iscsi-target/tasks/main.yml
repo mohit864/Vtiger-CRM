@@ -1,72 +1,58 @@
 ---
-- block:
-    - name: check if iSCSI target is already configured
-      shell: 'targetcli ls /backstores/{{ item.1.type }}/{{ item.1.name }} && targetcli ls /iscsi/{{ item.0.wwn }}'
-      with_subelements: 
-        - "{{ iscsi_targets }}"
-        - disks
-      changed_when: no
+- name: Install targetcli package
+  yum:
+    name: targetcli
+    state: latest
 
-    - debug:
-        msg: iSCSI target is already Configured
-  rescue:
-    - debug:
-        msg: iSCSI target is not confiured.  Now configuration started
+- name: Start and enable targetcli service
+  service:
+    name: target
+    state: started
+    enabled: yes
 
-    - name: Install targetcli package
-      yum:
-        name: targetcli
-        state: latest
+- name: Enable port 3260/tcp on firewalld
+  firewalld:
+    port: 3260/tcp
+    state: enabled
+    permanent: yes
+    immediate: yes
 
-    - name: Start and enable targetcli service
-      service:
-        name: target
-        state: started
-        enabled: yes
+- name: define backstore objects
+  targetcli_backstore:
+    backstore_type: "{{ item.1.type }}"
+    backstore_name: "{{ item.1.name }}"
+    options: "{{ item.1.path }}"
+  with_subelements:
+    - "{{ iscsi_targets }}"
+    - disks
+  notify:
+    - save targetcli configuration
 
-    - name: Enable port 3260/tcp on firewalld
-      firewalld:
-        port: 3260/tcp
-        state: enabled
-        permanent: yes
-        immediate: yes
+- name: create iSCSI targets
+  targetcli_iscsi:
+    wwn: "{{ item.wwn }}"
+  with_items: "{{ iscsi_targets }}"
+  notify:
+    - save targetcli configuration
 
-    - name: define backstore objects
-      targetcli_backstore:
-        backstore_type: "{{ item.1.type }}"
-        backstore_name: "{{ item.1.name }}"
-        options: "{{ item.1.path }}"
-      with_subelements:
-        - "{{ iscsi_targets }}"
-        - disks
-      notify:
-        - save targetcli configuration
+- name: define ACLs for iSCSI target
+  targetcli_iscsi_acl:
+    wwn: "{{ item.0.wwn }}"
+    initiator_wwn: "{{ item.1 }}"
+  with_subelements:
+    - "{{ iscsi_targets }}"
+    - initiators
+  notify:
+    - save targetcli configuration
 
-    - name: create iSCSI targets
-      targetcli_iscsi:
-        wwn: "{{ item.wwn }}"
-      with_items: "{{ iscsi_targets }}"
-      notify:
-        - save targetcli configuration
-
-    - name: define ACLs for iSCSI target
-      targetcli_iscsi_acl:
-        wwn: "{{ item.0.wwn }}"
-        initiator_wwn: "{{ item.1 }}"
-      with_subelements:
-        - "{{ iscsi_targets }}"
-        - initiators
-      notify:
-        - save targetcli configuration
-
-    - name: assing LUNs to initiators
-      targetcli_iscsi_lun:
-        wwn: "{{ item.0.wwn }}"
-        backstore_type: "{{ item.1.type }}"
-        backstore_name: "{{ item.1.name }}"
-      with_subelements:
-        - "{{ iscsi_targets }}"
-        - disks
-      notify:
-        - save targetcli configuration
+- name: assing LUNs to initiators
+  targetcli_iscsi_lun:
+    wwn: "{{ item.0.wwn }}"
+    backstore_type: "{{ item.1.type }}"
+    backstore_name: "{{ item.1.name }}"
+  with_subelements:
+    - "{{ iscsi_targets }}"
+    - disks
+  notify:
+    - save targetcli configuration
 
