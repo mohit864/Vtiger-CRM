@@ -94,7 +94,7 @@
     login_password: "{{ mariadb_new_root_password }}"
     state: present
   with_items: 
-    - "{{ hosts }}"
+    - "{{ db_hosts }}"
 
 - name: "Create a new database with name {{ vtigercrm_db_name }}"
   mysql_db:

@@ -15,7 +15,7 @@ mariadb_new_root_password: "redhat"
 vtigercrm_db_user: "vtiger"
 vtigercrm_db_password: "vtiger"
 vtigercrm_db_name: "vtiger"
-hosts:
+db_hosts:
   - "%"
   - "127.0.0.1"
   - "::1"
