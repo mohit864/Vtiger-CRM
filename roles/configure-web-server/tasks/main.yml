@@ -27,12 +27,6 @@
     setype: httpd_config_t
     mode: '0644'
 
-- name: Change Document Root for Apache
-  replace:
-    path: /etc/httpd/conf/httpd.conf
-    regexp: '^DocumentRoot "/var/www/html"'
-    replace: 'DocumentRoot "/var/www/html/vtigercrm"'
-
 - name: HTTPS Redirection in Apache
   blockinfile:
     block: |
